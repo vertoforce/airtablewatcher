@@ -44,7 +44,7 @@ type watcher struct {
 }
 
 // ActionFunction Function that runs when triggered
-type ActionFunction func(tasker *Tasker, airtableTask Task)
+type ActionFunction func(tasker *Tasker, airtableTask *Task)
 
 // NewTasker Create new tasker to watch airtable
 func NewTasker(airtableKey, airtableBase string) (*Tasker, error) {
@@ -130,9 +130,9 @@ func (t *Tasker) Start(ctx context.Context) {
 				for _, watcher := range t.watchers {
 					if watcher.trigger == state {
 						if t.Async {
-							go watcher.actionFunction(t, task)
+							go watcher.actionFunction(t, &task)
 						} else {
-							watcher.actionFunction(t, task)
+							watcher.actionFunction(t, &task)
 						}
 					}
 				}

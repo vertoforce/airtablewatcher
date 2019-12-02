@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func printTask(tasker *Tasker, task Task) {
+func printTask(tasker *Tasker, task *Task) {
 	fmt.Printf("Running code on %v", task)
 	// Make sure to change state after work is done!
 	tasker.SetState(task.ID, "Done")
