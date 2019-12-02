@@ -4,6 +4,10 @@ Airtable tasker is a simple library to make it easy to run backend go code based
 
 The library watches the airtable field named `State` and runs a function when the state is changed to the watching state.
 
+## Example
+
+![example](example.gif)
+
 ## Usage
 
 Set up an airtable base like [this one](https://airtable.com/shrrp5hz1D5JTb1HI).
