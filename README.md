@@ -17,7 +17,7 @@ Then write code to listen for any rows that have the State `ToDo`.
 func printTask(tasker *Tasker, task Task) {
     fmt.Println(task)
     // Make sure to change state after work is done!
-    tasker.SetState(task.ID, "Done")
+    tasker.SetState(task, "Done")
 }
 
 func main() {

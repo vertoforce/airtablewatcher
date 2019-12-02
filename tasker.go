@@ -80,10 +80,8 @@ func (t *Tasker) RegisterFunction(triggerState string, actionFunction ActionFunc
 }
 
 // SetState Set state of airtable row
-func (t *Tasker) SetState(id, state string) error {
-	return t.airtableClient.UpdateRecord(t.AirtableTable, id, map[string]interface{}{
-		"State": state,
-	}, nil)
+func (t *Tasker) SetState(task *Task, state string) error {
+	return t.SetField(task, "State", state)
 }
 
 // GetState Get state of airtable row
@@ -95,7 +93,7 @@ func (t *Tasker) GetState(id string) (string, error) {
 	}
 
 	// Attempt to pull state from task
-	if state := task.GetField("State"); state != "" {
+	if state := GetField(&task, "State"); state != "" {
 		return state, nil
 	}
 
@@ -125,7 +123,7 @@ func (t *Tasker) Start(ctx context.Context) error {
 		// Check each task
 		for _, task := range tasks {
 			// Attempt to pull state from task
-			if state := task.GetField("State"); state != "" {
+			if state := GetField(&task, "State"); state != "" {
 				// Check each watcher
 				for _, watcher := range t.watchers {
 					if watcher.trigger == state {
@@ -151,10 +149,10 @@ func (t *Tasker) Start(ctx context.Context) error {
 
 }
 
-// GetField Attempt to pull string field from task
-func (t *Task) GetField(fieldName string) string {
+// GetField Attempt to get string field from task
+func GetField(task *Task, fieldName string) string {
 	// Attempt to cast and get state
-	if res, ok := t.Fields.(map[string]interface{}); ok {
+	if res, ok := task.Fields.(map[string]interface{}); ok {
 		if state, ok := res[fieldName]; ok {
 			if stateString, ok := state.(string); ok {
 				return stateString
@@ -162,4 +160,11 @@ func (t *Task) GetField(fieldName string) string {
 		}
 	}
 	return ""
+}
+
+// SetField Attempt to set string field for a task
+func (t *Tasker) SetField(task *Task, fieldName, fieldVal string) error {
+	return t.airtableClient.UpdateRecord(t.AirtableTable, task.ID, map[string]interface{}{
+		fieldName: fieldVal,
+	}, nil)
 }

@@ -17,7 +17,7 @@ func performAction(tasker *Tasker, task *Task) {
 	default:
 	}
 	// Make sure to change state after work is done!
-	tasker.SetState(task.ID, "Done")
+	tasker.SetState(task, "Done")
 }
 
 func TestNewTasker(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNewTasker(t *testing.T) {
 		t.Errorf("No tasks")
 		return
 	}
-	err = tasker.SetState(tasks[0].ID, "ToDo")
+	err = tasker.SetState(&tasks[0], "ToDo")
 	if err != nil {
 		t.Errorf("Error setting state")
 	}
@@ -69,11 +69,11 @@ func TestSetGetState(t *testing.T) {
 	}
 
 	// Set and Get state of first task
-	err = tasker.SetState(tasks[0].ID, "New")
+	err = tasker.SetState(&tasks[0], "New")
 	if state, _ := tasker.GetState(tasks[0].ID); state != "New" {
 		t.Errorf("Incorrect state read")
 	}
-	tasker.SetState(tasks[0].ID, "Original")
+	tasker.SetState(&tasks[0], "Original")
 	if state, _ := tasker.GetState(tasks[0].ID); state != "Original" {
 		t.Errorf("Incorrect state read")
 	}
