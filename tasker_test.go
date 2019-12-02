@@ -10,7 +10,7 @@ import (
 
 var ranFunction chan int
 
-func performAction(tasker *Tasker, task Task) {
+func performAction(tasker *Tasker, task *Task) {
 	fmt.Println(task)
 	select {
 	case ranFunction <- 1:
