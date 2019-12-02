@@ -21,7 +21,7 @@ func printTask(tasker *Tasker, task Task) {
 }
 
 func main() {
-    tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+    tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"), "Tasks")
     if err != nil {
         return
     }

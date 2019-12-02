@@ -21,7 +21,7 @@ func performAction(tasker *Tasker, task *Task) {
 }
 
 func TestNewTasker(t *testing.T) {
-	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"), "Tasks")
 	if err != nil {
 		t.Errorf(err.Error())
 		return
@@ -57,7 +57,7 @@ func TestNewTasker(t *testing.T) {
 }
 
 func TestSetGetState(t *testing.T) {
-	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"), "Tasks")
 	if err != nil {
 		t.Errorf(err.Error())
 		return

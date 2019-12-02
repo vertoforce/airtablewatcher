@@ -47,12 +47,12 @@ type watcher struct {
 type ActionFunction func(tasker *Tasker, airtableTask *Task)
 
 // NewTasker Create new tasker to watch airtable
-func NewTasker(airtableKey, airtableBase string) (*Tasker, error) {
+func NewTasker(airtableKey, airtableBase, tableName string) (*Tasker, error) {
 	tasker := &Tasker{
 		airtableKey:   airtableKey,
 		airtableBase:  airtableBase,
 		PollInterval:  DefaultAirtablePollInterval,
-		AirtableTable: DefaultAirtableTable,
+		AirtableTable: tableName,
 		Async:         DefaultAsync,
 	}
 	err := tasker.connect()
