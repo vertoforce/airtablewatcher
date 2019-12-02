@@ -6,13 +6,26 @@ The library watches the airtable field named `State` and runs a function when th
 
 ## Usage
 
+Set up an airtable base like [this one](https://airtable.com/shrrp5hz1D5JTb1HI).
+Then write code to listen for any rows that have the State `ToDo`.
+
 ```go
-func performAction(tasker *Tasker, airtableEntry interface{}) {
-    fmt.Println(airtableEntry)
+func printTask(tasker *Tasker, task Task) {
+    fmt.Println(task)
     // Make sure to change state after work is done!
-    tasker.SetState("Processed")
+    tasker.SetState(task.ID, "Done")
 }
 
-tasker := NewTasker("airtable_key", "airtable_base")
-tasker.RegisterFunction("Processing", performAction())
+func main() {
+    tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+    if err != nil {
+        return
+    }
+
+    // Register function
+    tasker.RegisterFunction("ToDo", printTask)
+
+    // Start tasker
+    tasker.Start(context.Background())
+}
 ```
