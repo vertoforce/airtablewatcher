@@ -1,4 +1,4 @@
-module airtabletasker
+module github.com/vertoforce/airtabletasker
 
 go 1.12
 
