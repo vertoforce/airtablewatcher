@@ -114,12 +114,12 @@ func (t *Tasker) GetTasks() ([]Task, error) {
 }
 
 // Start watch airtable for triggers, blocking function.
-func (t *Tasker) Start(ctx context.Context) {
+func (t *Tasker) Start(ctx context.Context) error {
 	for {
 		// Go through each task
 		tasks, err := t.GetTasks()
 		if err != nil {
-			break
+			return err
 		}
 
 		// Check each task
@@ -142,7 +142,7 @@ func (t *Tasker) Start(ctx context.Context) {
 		// Check context
 		select {
 		case <-ctx.Done():
-			break
+			return ctx.Err()
 		default:
 		}
 
