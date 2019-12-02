@@ -95,7 +95,7 @@ func (t *Tasker) GetState(id string) (string, error) {
 	}
 
 	// Attempt to pull state from task
-	if state := getState(&task); state != "" {
+	if state := task.GetField("State"); state != "" {
 		return state, nil
 	}
 
@@ -125,7 +125,7 @@ func (t *Tasker) Start(ctx context.Context) error {
 		// Check each task
 		for _, task := range tasks {
 			// Attempt to pull state from task
-			if state := getState(&task); state != "" {
+			if state := task.GetField("State"); state != "" {
 				// Check each watcher
 				for _, watcher := range t.watchers {
 					if watcher.trigger == state {
@@ -151,11 +151,11 @@ func (t *Tasker) Start(ctx context.Context) error {
 
 }
 
-// getState pull state field from a task
-func getState(task *Task) string {
+// GetField Attempt to pull string field from task
+func (t *Task) GetField(fieldName string) string {
 	// Attempt to cast and get state
-	if res, ok := task.Fields.(map[string]interface{}); ok {
-		if state, ok := res["State"]; ok {
+	if res, ok := t.Fields.(map[string]interface{}); ok {
+		if state, ok := res[fieldName]; ok {
 			if stateString, ok := state.(string); ok {
 				return stateString
 			}
