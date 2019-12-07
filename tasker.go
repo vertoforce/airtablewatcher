@@ -157,6 +157,12 @@ func GetField(task *Task, fieldName string) string {
 			if stateString, ok := state.(string); ok {
 				return stateString
 			}
+			if stateBool, ok := state.(bool); ok {
+				if stateBool {
+					return "true"
+				}
+				return "false"
+			}
 		}
 	}
 	return ""
