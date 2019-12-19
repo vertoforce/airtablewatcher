@@ -16,16 +16,15 @@ const (
 	DefaultAsync                = false
 )
 
-// Task Generic row from airtable
-type Task struct {
+// Row Generic row from airtable
+type Row struct {
 	ID     string
 	Fields interface{}
 }
 
-// Tasker configuration to watch airtable for a change in state
-type Tasker struct {
-	PollInterval  time.Duration
-	AirtableTable string
+// Watcher configuration to watch airtable for a change in state
+type Watcher struct {
+	PollInterval time.Duration
 
 	// Perform action functions in separate go routines
 	Async bool
@@ -34,37 +33,38 @@ type Tasker struct {
 	airtableKey    string
 	airtableBase   string
 	timeout        time.Duration
-	watchers       []watcher
+	watchers       []watch
 }
 
-// watching trigger and function
-type watcher struct {
-	trigger        string
+// watch trigger and function
+type watch struct {
+	tableName      string
+	fieldName      string
+	triggerValue   string
 	actionFunction ActionFunction
 }
 
 // ActionFunction Function that runs when triggered
-type ActionFunction func(tasker *Tasker, airtableTask *Task)
+type ActionFunction func(watcher *Watcher, airtableRow *Row)
 
-// NewTasker Create new tasker to watch airtable
-func NewTasker(airtableKey, airtableBase, tableName string) (*Tasker, error) {
-	tasker := &Tasker{
-		airtableKey:   airtableKey,
-		airtableBase:  airtableBase,
-		PollInterval:  DefaultAirtablePollInterval,
-		AirtableTable: tableName,
-		Async:         DefaultAsync,
+// NewWatcher Create new tasker to watch airtable
+func NewWatcher(airtableKey, airtableBase string) (*Watcher, error) {
+	watcher := &Watcher{
+		airtableKey:  airtableKey,
+		airtableBase: airtableBase,
+		PollInterval: DefaultAirtablePollInterval,
+		Async:        DefaultAsync,
 	}
-	err := tasker.connect()
+	err := watcher.connect()
 	if err != nil {
 		return nil, err
 	}
 
-	return tasker, nil
+	return watcher, nil
 }
 
 // connect or reconnect to airtable
-func (t *Tasker) connect() error {
+func (t *Watcher) connect() error {
 	airtableClient, err := airtable.New(t.airtableKey, t.airtableBase)
 	if err != nil {
 		return err
@@ -75,35 +75,14 @@ func (t *Tasker) connect() error {
 }
 
 // RegisterFunction Register a function to run on an airtable row when the state is changed to the trigger state.
-func (t *Tasker) RegisterFunction(triggerState string, actionFunction ActionFunction) {
-	t.watchers = append(t.watchers, watcher{triggerState, actionFunction})
+func (t *Watcher) RegisterFunction(tableName, fieldName, triggerValue string, actionFunction ActionFunction) {
+	t.watchers = append(t.watchers, watch{tableName, fieldName, triggerValue, actionFunction})
 }
 
-// SetState Set state of airtable row
-func (t *Tasker) SetState(task *Task, state string) error {
-	return t.SetField(task, "State", state)
-}
-
-// GetState Get state of airtable row
-func (t *Tasker) GetState(id string) (string, error) {
-	var task Task
-	err := t.airtableClient.RetrieveRecord(t.AirtableTable, id, &task)
-	if err != nil {
-		return "", err
-	}
-
-	// Attempt to pull state from task
-	if state := GetField(&task, "State"); state != "" {
-		return state, nil
-	}
-
-	return "", errors.New("Could not parse state from task")
-}
-
-// GetTasks Get list of tasks in airtable
-func (t *Tasker) GetTasks() ([]Task, error) {
-	tasks := []Task{}
-	err := t.airtableClient.ListRecords(t.AirtableTable, &tasks)
+// GetRows Get list of tasks in airtable
+func (t *Watcher) GetRows(tableName string) ([]Row, error) {
+	tasks := []Row{}
+	err := t.airtableClient.ListRecords(tableName, &tasks)
 	if err != nil {
 		return nil, err
 	}
@@ -112,25 +91,36 @@ func (t *Tasker) GetTasks() ([]Task, error) {
 }
 
 // Start watch airtable for triggers, blocking function.
-func (t *Tasker) Start(ctx context.Context) error {
+// TODO: Make threadsafe
+func (t *Watcher) Start(ctx context.Context) error {
 	for {
-		// Go through each task
-		tasks, err := t.GetTasks()
-		if err != nil {
-			return err
+		// Get all tables we need to scan
+		tables := map[string]bool{}
+		for _, watcher := range t.watchers {
+			tables[watcher.tableName] = true
 		}
 
-		// Check each task
-		for _, task := range tasks {
-			// Attempt to pull state from task
-			if state := GetField(&task, "State"); state != "" {
+		// Go through each row in each table
+		for tableName, _ := range tables {
+			rows, err := t.GetRows(tableName)
+			if err != nil {
+				return err
+			}
+
+			// Check each row
+			for _, row := range rows {
 				// Check each watcher
 				for _, watcher := range t.watchers {
-					if watcher.trigger == state {
+					// Check tableName
+					if watcher.tableName != tableName {
+						continue
+					}
+					// Check fieldName and triggerValue
+					if GetFieldFromRow(&row, watcher.fieldName) == watcher.triggerValue {
 						if t.Async {
-							go watcher.actionFunction(t, &task)
+							go watcher.actionFunction(t, &row)
 						} else {
-							watcher.actionFunction(t, &task)
+							watcher.actionFunction(t, &row)
 						}
 					}
 				}
@@ -149,10 +139,33 @@ func (t *Tasker) Start(ctx context.Context) error {
 
 }
 
-// GetField Attempt to get string field from task
-func GetField(task *Task, fieldName string) string {
+// GetState Get state of airtable row
+func (t *Watcher) GetField(tableName, recordID, fieldName string) (string, error) {
+	var row Row
+	err := t.airtableClient.RetrieveRecord(tableName, recordID, &row)
+	if err != nil {
+		return "", err
+	}
+
+	// Attempt to pull state from task
+	if state := GetFieldFromRow(&row, fieldName); state != "" {
+		return state, nil
+	}
+
+	return "", errors.New("Could not parse state from task")
+}
+
+// SetField Attempt to set string field for a task
+func (t *Watcher) SetField(tableName, recordID, fieldName, fieldVal string) error {
+	return t.airtableClient.UpdateRecord(tableName, recordID, map[string]interface{}{
+		fieldName: fieldVal,
+	}, nil)
+}
+
+// GetFieldFromRow Attempt to get string field from task
+func GetFieldFromRow(row *Row, fieldName string) string {
 	// Attempt to cast and get state
-	if res, ok := task.Fields.(map[string]interface{}); ok {
+	if res, ok := row.Fields.(map[string]interface{}); ok {
 		if state, ok := res[fieldName]; ok {
 			if stateString, ok := state.(string); ok {
 				return stateString
@@ -166,11 +179,4 @@ func GetField(task *Task, fieldName string) string {
 		}
 	}
 	return ""
-}
-
-// SetField Attempt to set string field for a task
-func (t *Tasker) SetField(task *Task, fieldName, fieldVal string) error {
-	return t.airtableClient.UpdateRecord(t.AirtableTable, task.ID, map[string]interface{}{
-		fieldName: fieldVal,
-	}, nil)
 }
