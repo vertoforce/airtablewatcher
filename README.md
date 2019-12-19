@@ -2,7 +2,7 @@
 
 Airtable watcher is a simple library to make it easy to run backend go code based on an airtable frontend.
 
-The library watches the airtable field named `State` and runs a function when the state is changed to the watching state.
+The library watches an airtable base and runs a function when a field is changed to the `triggerValue`.
 
 ## Example
 
@@ -11,7 +11,7 @@ The library watches the airtable field named `State` and runs a function when th
 ## Usage
 
 Set up an airtable base like [this one](https://airtable.com/shrrp5hz1D5JTb1HI).
-Then write code to listen for any rows that have the State `ToDo`.
+Then write code to listen for any rows that have the `State` field set to `ToDo`.
 
 ```go
 func printTask(watcher *Watcher, row *Row) {
