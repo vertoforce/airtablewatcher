@@ -10,42 +10,42 @@ import (
 
 var ranFunction chan int
 
-func performAction(tasker *Tasker, task *Task) {
-	fmt.Println(task)
+func performAction(watcher *Watcher, row *Row) {
+	fmt.Println(row)
 	select {
 	case ranFunction <- 1:
 	default:
 	}
 	// Make sure to change state after work is done!
-	tasker.SetState(task, "Done")
+	watcher.SetField("Tasks", row.ID, "State", "Done")
 }
 
-func TestNewTasker(t *testing.T) {
-	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"), "Tasks")
+func TestNewWatcher(t *testing.T) {
+	watcher, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
 	if err != nil {
 		t.Errorf(err.Error())
 		return
 	}
-	tasker.PollInterval = time.Second * 2
+	watcher.PollInterval = time.Second * 2
 
 	// Register function
 	ranFunction = make(chan int)
-	tasker.RegisterFunction("ToDo", performAction)
+	watcher.RegisterFunction("Tasks", "State", "ToDo", performAction)
 
 	// Set a task to ToDo
-	tasks, err := tasker.GetTasks()
-	if len(tasks) == 0 || err != nil {
+	rows, err := watcher.GetRows("Tasks")
+	if len(rows) == 0 || err != nil {
 		t.Errorf("No tasks")
 		return
 	}
-	err = tasker.SetState(&tasks[0], "ToDo")
+	err = watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
 	if err != nil {
 		t.Errorf("Error setting state")
 	}
 
 	// Start tasker
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	go tasker.Start(ctx)
+	go watcher.Start(ctx)
 
 	// Wait for our function to run or context to be canceled
 	select {
@@ -57,24 +57,24 @@ func TestNewTasker(t *testing.T) {
 }
 
 func TestSetGetState(t *testing.T) {
-	tasker, err := NewTasker(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"), "Tasks")
+	tasker, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
 	if err != nil {
 		t.Errorf(err.Error())
 		return
 	}
 
-	tasks, err := tasker.GetTasks()
-	if len(tasks) == 0 || err != nil {
+	rows, err := tasker.GetRows("Tasks")
+	if len(rows) == 0 || err != nil {
 		t.Errorf("Failed to get tasks")
 	}
 
 	// Set and Get state of first task
-	err = tasker.SetState(&tasks[0], "New")
-	if state, _ := tasker.GetState(tasks[0].ID); state != "New" {
+	err = tasker.SetField("Tasks", rows[0].ID, "State", "New")
+	if state, _ := tasker.GetField("Tasks", rows[0].ID, "State"); state != "New" {
 		t.Errorf("Incorrect state read")
 	}
-	tasker.SetState(&tasks[0], "Original")
-	if state, _ := tasker.GetState(tasks[0].ID); state != "Original" {
+	err = tasker.SetField("Tasks", rows[0].ID, "State", "Original")
+	if state, _ := tasker.GetField("Tasks", rows[0].ID, "State"); state != "Original" {
 		t.Errorf("Incorrect state read")
 	}
 }
