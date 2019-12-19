@@ -1,4 +1,4 @@
-package airtabletasker
+package airtablewatcher
 
 import (
 	"context"

@@ -1,5 +1,5 @@
-// Package airtabletasker makes it easy to run functions on airtable rows when a "State" is set
-package airtabletasker
+// Package airtablewatcher makes it easy to watch an airtable for row changes and run a function on that row
+package airtablewatcher
 
 import (
 	"context"
