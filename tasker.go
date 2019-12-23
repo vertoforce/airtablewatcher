@@ -14,6 +14,7 @@ const (
 	DefaultAirtablePollInterval = time.Second * 10
 	DefaultAirtableTable        = "Tasks"
 	DefaultAsync                = false
+	DefaultConfigTableName      = "Config"
 )
 
 // Row Generic row from airtable
@@ -25,6 +26,8 @@ type Row struct {
 // Watcher configuration to watch airtable for a change in state
 type Watcher struct {
 	PollInterval time.Duration
+	// Table for configuration items with Key,Value fields
+	ConfigTableName string
 
 	// Perform action functions in separate go routines
 	Async bool
@@ -50,10 +53,11 @@ type ActionFunction func(watcher *Watcher, airtableRow *Row)
 // NewWatcher Create new tasker to watch airtable
 func NewWatcher(airtableKey, airtableBase string) (*Watcher, error) {
 	watcher := &Watcher{
-		airtableKey:  airtableKey,
-		airtableBase: airtableBase,
-		PollInterval: DefaultAirtablePollInterval,
-		Async:        DefaultAsync,
+		airtableKey:     airtableKey,
+		airtableBase:    airtableBase,
+		PollInterval:    DefaultAirtablePollInterval,
+		Async:           DefaultAsync,
+		ConfigTableName: DefaultConfigTableName,
 	}
 	err := watcher.connect()
 	if err != nil {
@@ -160,6 +164,22 @@ func (t *Watcher) SetField(tableName, recordID, fieldName, fieldVal string) erro
 	return t.airtableClient.UpdateRecord(tableName, recordID, map[string]interface{}{
 		fieldName: fieldVal,
 	}, nil)
+}
+
+// GetConfig Get value of config key
+func (t *Watcher) GetConfig(key string) (string, error) {
+	rows, err := t.GetRows(t.ConfigTableName)
+	if err != nil {
+		return "", err
+	}
+
+	for _, row := range rows {
+		if thisKey := GetFieldFromRow(&row, "Key"); thisKey == key {
+			return GetFieldFromRow(&row, "Value"), nil
+		}
+	}
+
+	return "", errors.New("config key not found")
 }
 
 // GetFieldFromRow Attempt to get string field from task
