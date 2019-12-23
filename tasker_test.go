@@ -78,3 +78,19 @@ func TestSetGetState(t *testing.T) {
 		t.Errorf("Incorrect state read")
 	}
 }
+
+func TestGetConfig(t *testing.T) {
+	watcher, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+	if err != nil {
+		t.Errorf(err.Error())
+		return
+	}
+	val, err := watcher.GetConfig("TestKey")
+	if err != nil {
+		t.Errorf("Error: " + err.Error())
+		return
+	}
+	if val != "TestValue" {
+		t.Errorf("Didn't get correct value")
+	}
+}
