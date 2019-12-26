@@ -10,7 +10,7 @@ import (
 
 var ranFunction chan int
 
-func performAction(watcher *Watcher, row *Row) {
+func performAction(watcher *Watcher, tableName string, row *Row) {
 	fmt.Println(row)
 	select {
 	case ranFunction <- 1:
