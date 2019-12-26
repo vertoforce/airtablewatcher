@@ -14,7 +14,7 @@ Set up an airtable base like [this one](https://airtable.com/shrrp5hz1D5JTb1HI).
 Then write code to listen for any rows that have the `State` field set to `ToDo`.
 
 ```go
-func printTask(watcher *Watcher, row *Row) {
+func printTask(watcher *Watcher, tableName string,  row *Row) {
     fmt.Printf("Running code on %v", row)
     // Make sure to change state after work is done!
     watcher.SetField("Tasks", row.ID, "State", "Done")
