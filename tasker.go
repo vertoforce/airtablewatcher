@@ -15,6 +15,8 @@ const (
 	DefaultAirtableTable        = "Tasks"
 	DefaultAsync                = false
 	DefaultConfigTableName      = "Config"
+
+	AirtableDateFormat = "2006-01-02T15:04:05.000Z"
 )
 
 // Row Generic row from airtable
@@ -204,8 +206,11 @@ func GetFieldFromRowTime(row *Row, fieldName string) time.Time {
 	// Attempt to cast and get state
 	if res, ok := row.Fields.(map[string]interface{}); ok {
 		if state, ok := res[fieldName]; ok {
-			if time, ok := state.(time.Time); ok {
-				return time
+			if timeStr, ok := state.(string); ok {
+				time, err := time.Parse(AirtableDateFormat, timeStr)
+				if err == nil {
+					return time
+				}
 			}
 		}
 	}
