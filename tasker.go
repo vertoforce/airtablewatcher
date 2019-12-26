@@ -28,15 +28,14 @@ type Watcher struct {
 	PollInterval time.Duration
 	// Table for configuration items with Key,Value fields
 	ConfigTableName string
-
+	AirtableClient  *airtable.Client
 	// Perform action functions in separate go routines
 	Async bool
 
-	airtableClient *airtable.Client
-	airtableKey    string
-	airtableBase   string
-	timeout        time.Duration
-	watchers       []watch
+	airtableKey  string
+	airtableBase string
+	timeout      time.Duration
+	watchers     []watch
 }
 
 // watch trigger and function
@@ -73,7 +72,7 @@ func (t *Watcher) connect() error {
 	if err != nil {
 		return err
 	}
-	t.airtableClient = airtableClient
+	t.AirtableClient = airtableClient
 
 	return nil
 }
@@ -86,7 +85,7 @@ func (t *Watcher) RegisterFunction(tableName, fieldName, triggerValue string, ac
 // GetRows Get list of tasks in airtable
 func (t *Watcher) GetRows(tableName string) ([]Row, error) {
 	tasks := []Row{}
-	err := t.airtableClient.ListRecords(tableName, &tasks)
+	err := t.AirtableClient.ListRecords(tableName, &tasks)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +145,7 @@ func (t *Watcher) Start(ctx context.Context) error {
 // GetState Get state of airtable row
 func (t *Watcher) GetField(tableName, recordID, fieldName string) (string, error) {
 	var row Row
-	err := t.airtableClient.RetrieveRecord(tableName, recordID, &row)
+	err := t.AirtableClient.RetrieveRecord(tableName, recordID, &row)
 	if err != nil {
 		return "", err
 	}
@@ -161,7 +160,7 @@ func (t *Watcher) GetField(tableName, recordID, fieldName string) (string, error
 
 // SetField Attempt to set string field for a task
 func (t *Watcher) SetField(tableName, recordID, fieldName, fieldVal string) error {
-	return t.airtableClient.UpdateRecord(tableName, recordID, map[string]interface{}{
+	return t.AirtableClient.UpdateRecord(tableName, recordID, map[string]interface{}{
 		fieldName: fieldVal,
 	}, nil)
 }
