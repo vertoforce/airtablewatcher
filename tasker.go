@@ -199,3 +199,15 @@ func GetFieldFromRow(row *Row, fieldName string) string {
 	}
 	return ""
 }
+
+func GetFieldFromRowTime(row *Row, fieldName string) time.Time {
+	// Attempt to cast and get state
+	if res, ok := row.Fields.(map[string]interface{}); ok {
+		if state, ok := res[fieldName]; ok {
+			if time, ok := state.(time.Time); ok {
+				return time
+			}
+		}
+	}
+	return time.Date(1, 0, 0, 0, 0, 0, 0, time.UTC)
+}
