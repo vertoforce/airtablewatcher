@@ -4,6 +4,7 @@ package airtablewatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fabioberger/airtable-go"
@@ -225,6 +226,9 @@ func GetFieldFromRow(row *Row, fieldName string) string {
 					return "true"
 				}
 				return "false"
+			}
+			if stateFloat, ok := state.(float64); ok {
+				return fmt.Sprintf("%f", stateFloat)
 			}
 		}
 	}
