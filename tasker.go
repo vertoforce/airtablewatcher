@@ -13,7 +13,6 @@ import (
 const (
 	DefaultAirtablePollInterval = time.Second * 10
 	DefaultAirtableTable        = "Tasks"
-	DefaultAsync                = false
 	DefaultConfigTableName      = "Config"
 
 	AirtableDateFormat = "2006-01-02T15:04:05.000Z"
@@ -31,13 +30,12 @@ type Watcher struct {
 	// Table for configuration items with Key,Value fields
 	ConfigTableName string
 	AirtableClient  *airtable.Client
-	// Perform action functions in separate go routines
-	Async bool
 
 	airtableKey  string
 	airtableBase string
 	timeout      time.Duration
 	watchers     []watch
+	ctx          context.Context
 }
 
 // watch trigger and function
@@ -45,11 +43,13 @@ type watch struct {
 	tableName      string
 	fieldName      string
 	triggerValue   string
+	cancelValues   []string
 	actionFunction ActionFunction
 }
 
 // ActionFunction Function that runs when triggered
-type ActionFunction func(watcher *Watcher, tableName string, airtableRow *Row)
+// If the row is changed off the trigger value while the function is still running, the context is canceled
+type ActionFunction func(ctx context.Context, watcher *Watcher, tableName string, airtableRow *Row)
 
 // NewWatcher Create new tasker to watch airtable
 func NewWatcher(airtableKey, airtableBase string) (*Watcher, error) {
@@ -57,7 +57,6 @@ func NewWatcher(airtableKey, airtableBase string) (*Watcher, error) {
 		airtableKey:     airtableKey,
 		airtableBase:    airtableBase,
 		PollInterval:    DefaultAirtablePollInterval,
-		Async:           DefaultAsync,
 		ConfigTableName: DefaultConfigTableName,
 	}
 	err := watcher.connect()
@@ -80,8 +79,9 @@ func (t *Watcher) connect() error {
 }
 
 // RegisterFunction Register a function to run on an airtable row when the state is changed to the trigger state.
-func (t *Watcher) RegisterFunction(tableName, fieldName, triggerValue string, actionFunction ActionFunction) {
-	t.watchers = append(t.watchers, watch{tableName, fieldName, triggerValue, actionFunction})
+// cancelValue will cancel the function when any of the cancelValues is matched
+func (t *Watcher) RegisterFunction(tableName, fieldName, triggerValue string, actionFunction ActionFunction, cancelValue ...string) {
+	t.watchers = append(t.watchers, watch{tableName, fieldName, triggerValue, cancelValue, actionFunction})
 }
 
 // GetRows Get list of tasks in airtable
@@ -96,8 +96,10 @@ func (t *Watcher) GetRows(tableName string) ([]Row, error) {
 }
 
 // Start watch airtable for triggers, blocking function.
+// The context applies to all sub tasks, if the context is canceled, all registered functions will be cancelled
 // TODO: Make threadsafe
 func (t *Watcher) Start(ctx context.Context) error {
+	t.ctx = ctx
 	for {
 		// Get all tables we need to scan
 		tables := map[string]bool{}
@@ -120,13 +122,20 @@ func (t *Watcher) Start(ctx context.Context) error {
 					if watcher.tableName != tableName {
 						continue
 					}
-					// Check fieldName and triggerValue
 					if GetFieldFromRow(&row, watcher.fieldName) == watcher.triggerValue {
-						if t.Async {
-							go watcher.actionFunction(t, tableName, &row)
-						} else {
-							watcher.actionFunction(t, tableName, &row)
-						}
+						// We should run this action function!
+
+						actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
+						watchForCancelCtx, watchForCancelCancel := context.WithCancel(actionFunctionCtx)
+
+						// Cancel context if fieldName =/= triggerValue
+						go t.watchForCancel(watchForCancelCtx, &row, &watcher, actionFunctionCancel)
+
+						// Call action
+						watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
+
+						actionFunctionCancel()
+						watchForCancelCancel()
 					}
 				}
 			}
@@ -141,7 +150,27 @@ func (t *Watcher) Start(ctx context.Context) error {
 
 		time.Sleep(t.PollInterval)
 	}
+}
 
+// watchForCancel watches a row if it leaves the trigger value, if it does, cancels the context
+func (t *Watcher) watchForCancel(ctx context.Context, row *Row, watcher *watch, actionFunctionCancel context.CancelFunc) {
+	for {
+		value, _ := t.GetField(watcher.tableName, row.ID, watcher.fieldName)
+		for _, cancelValue := range watcher.cancelValues {
+			if value == cancelValue {
+				// Cancel that action function
+				actionFunctionCancel()
+				return
+			}
+		}
+		time.Sleep(t.PollInterval / 2) // Poll this at double the rate of full poll
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
 }
 
 // GetState Get state of airtable row

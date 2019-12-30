@@ -10,7 +10,7 @@ import (
 
 var ranFunction chan int
 
-func performAction(watcher *Watcher, tableName string, row *Row) {
+func performAction(ctx context.Context, watcher *Watcher, tableName string, row *Row) {
 	fmt.Println(row)
 	select {
 	case ranFunction <- 1:
@@ -92,5 +92,70 @@ func TestGetConfig(t *testing.T) {
 	}
 	if val != "TestValue" {
 		t.Errorf("Didn't get correct value")
+	}
+}
+
+var canceled = false
+
+func CancelMe(ctx context.Context, watcher *Watcher, tableName string, row *Row) {
+	watcher.SetField(tableName, row.ID, "State", "Processing")
+	// Don't return until canceled
+	select {
+	case <-ctx.Done():
+		canceled = true
+		watcher.SetField(tableName, row.ID, "State", "Error")
+		return
+	}
+}
+
+func TestCancel(t *testing.T) {
+	watcher, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+	if err != nil {
+		t.Errorf(err.Error())
+		return
+	}
+	watcher.PollInterval = time.Second * 2
+
+	// Add function and start watcher
+	watcher.RegisterFunction("Tasks", "State", "ToDo", CancelMe, "Cancel")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go watcher.Start(ctx)
+
+	// Check if we have enough rows to test on
+	rows, err := watcher.GetRows("Tasks")
+	if err != nil {
+		t.Errorf(err.Error())
+		return
+	}
+	if len(rows) == 0 {
+		t.Errorf("Not enough rows to test on")
+	}
+
+	// Execute function
+	watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
+	time.Sleep(time.Second * 3)
+
+	// Cancel the function
+	watcher.SetField("Tasks", rows[0].ID, "State", "Cancel")
+
+	// Check if the function was canceled
+	time.Sleep(time.Second)
+	if !canceled {
+		t.Errorf("Did not cancel function")
+	}
+
+	// Execute function again
+	canceled = false
+	watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
+	time.Sleep(time.Second * 3)
+
+	// Cancel entire watcher
+	cancel()
+
+	// Check if the function was canceled
+	time.Sleep(time.Second)
+	if !canceled {
+		t.Errorf("Did not cancel function")
 	}
 }
