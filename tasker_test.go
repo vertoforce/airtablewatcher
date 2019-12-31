@@ -17,7 +17,7 @@ func performAction(ctx context.Context, watcher *Watcher, tableName string, row 
 	default:
 	}
 	// Make sure to change state after work is done!
-	watcher.SetField("Tasks", row.ID, "State", "Done")
+	watcher.SetRow("Tasks", row.ID, map[string]interface{}{"State": "Done"})
 }
 
 func TestNewWatcher(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNewWatcher(t *testing.T) {
 		t.Errorf("No tasks")
 		return
 	}
-	err = watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
+	err = watcher.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "ToDo"})
 	if err != nil {
 		t.Errorf("Error setting state")
 	}
@@ -69,12 +69,12 @@ func TestSetGetState(t *testing.T) {
 	}
 
 	// Set and Get state of first task
-	err = tasker.SetField("Tasks", rows[0].ID, "State", "New")
-	if state, _ := tasker.GetField("Tasks", rows[0].ID, "State"); state != "New" {
+	err = tasker.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "New"})
+	if row, _ := tasker.GetRow("Tasks", rows[0].ID); row.GetFieldString("State") != "New" {
 		t.Errorf("Incorrect state read")
 	}
-	err = tasker.SetField("Tasks", rows[0].ID, "State", "Original")
-	if state, _ := tasker.GetField("Tasks", rows[0].ID, "State"); state != "Original" {
+	err = tasker.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "Original"})
+	if row, _ := tasker.GetRow("Tasks", rows[0].ID); row.GetFieldString("State") != "Original" {
 		t.Errorf("Incorrect state read")
 	}
 }
@@ -98,12 +98,12 @@ func TestGetConfig(t *testing.T) {
 var canceled = false
 
 func CancelMe(ctx context.Context, watcher *Watcher, tableName string, row *Row) {
-	watcher.SetField(tableName, row.ID, "State", "Processing")
+	watcher.SetRow(tableName, row.ID, map[string]interface{}{"State": "Processing"})
 	// Don't return until canceled
 	select {
 	case <-ctx.Done():
 		canceled = true
-		watcher.SetField(tableName, row.ID, "State", "Error")
+		watcher.SetRow(tableName, row.ID, map[string]interface{}{"State": "Error"})
 		return
 	}
 }
@@ -133,11 +133,11 @@ func TestCancel(t *testing.T) {
 	}
 
 	// Execute function
-	watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
+	watcher.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "ToDo"})
 	time.Sleep(time.Second * 3)
 
 	// Cancel the function
-	watcher.SetField("Tasks", rows[0].ID, "State", "Cancel")
+	watcher.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "Cancel"})
 
 	// Check if the function was canceled
 	time.Sleep(time.Second)
@@ -147,7 +147,7 @@ func TestCancel(t *testing.T) {
 
 	// Execute function again
 	canceled = false
-	watcher.SetField("Tasks", rows[0].ID, "State", "ToDo")
+	watcher.SetRow("Tasks", rows[0].ID, map[string]interface{}{"State": "ToDo"})
 	time.Sleep(time.Second * 3)
 
 	// Cancel entire watcher

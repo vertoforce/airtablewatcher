@@ -19,6 +19,11 @@ const (
 	AirtableDateFormat = "2006-01-02T15:04:05.000Z"
 )
 
+// More defaults
+var (
+	DefaultBlankTime = time.Date(1, 0, 0, 0, 0, 0, 0, time.UTC)
+)
+
 // Row Generic row from airtable
 type Row struct {
 	ID     string
@@ -123,20 +128,17 @@ func (t *Watcher) Start(ctx context.Context) error {
 					if watcher.tableName != tableName {
 						continue
 					}
-					if GetFieldFromRow(&row, watcher.fieldName) == watcher.triggerValue {
-						// We should run this action function!
 
+					if row.GetFieldString(watcher.fieldName) == watcher.triggerValue { // We should run this action function!
 						actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
-						watchForCancelCtx, watchForCancelCancel := context.WithCancel(actionFunctionCtx)
 
 						// Cancel context if fieldName =/= triggerValue
-						go t.watchForCancel(watchForCancelCtx, &row, &watcher, actionFunctionCancel)
+						go t.watchForCancel(actionFunctionCtx, &row, &watcher, actionFunctionCancel)
 
 						// Call action
 						watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
 
 						actionFunctionCancel()
-						watchForCancelCancel()
 					}
 				}
 			}
@@ -156,7 +158,11 @@ func (t *Watcher) Start(ctx context.Context) error {
 // watchForCancel watches a row if it leaves the trigger value, if it does, cancels the context
 func (t *Watcher) watchForCancel(ctx context.Context, row *Row, watcher *watch, actionFunctionCancel context.CancelFunc) {
 	for {
-		value, _ := t.GetField(watcher.tableName, row.ID, watcher.fieldName)
+		rowUpdated, err := t.GetRow(watcher.tableName, row.ID)
+		if err != nil {
+			return
+		}
+		value := rowUpdated.GetFieldString(watcher.fieldName)
 		for _, cancelValue := range watcher.cancelValues {
 			if value == cancelValue {
 				// Cancel that action function
@@ -174,27 +180,20 @@ func (t *Watcher) watchForCancel(ctx context.Context, row *Row, watcher *watch, 
 	}
 }
 
-// GetState Get state of airtable row
-func (t *Watcher) GetField(tableName, recordID, fieldName string) (string, error) {
-	var row Row
-	err := t.AirtableClient.RetrieveRecord(tableName, recordID, &row)
+// GetRow Get airtable row
+func (t *Watcher) GetRow(tableName, recordID string) (*Row, error) {
+	row := &Row{}
+	err := t.AirtableClient.RetrieveRecord(tableName, recordID, row)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// Attempt to pull state from task
-	if state := GetFieldFromRow(&row, fieldName); state != "" {
-		return state, nil
-	}
-
-	return "", errors.New("Could not parse state from task")
+	return row, nil
 }
 
-// SetField Attempt to set string field for a task
-func (t *Watcher) SetField(tableName, recordID, fieldName, fieldVal string) error {
-	return t.AirtableClient.UpdateRecord(tableName, recordID, map[string]interface{}{
-		fieldName: fieldVal,
-	}, nil)
+// SetRow Set provided fields for a row
+func (t *Watcher) SetRow(tableName, recordID string, fields map[string]interface{}) error {
+	return t.AirtableClient.UpdateRecord(tableName, recordID, fields, nil)
 }
 
 // GetConfig Get value of config key
@@ -205,47 +204,57 @@ func (t *Watcher) GetConfig(key string) (string, error) {
 	}
 
 	for _, row := range rows {
-		if thisKey := GetFieldFromRow(&row, "Key"); thisKey == key {
-			return GetFieldFromRow(&row, "Value"), nil
+		if thisKey := row.GetFieldString("Key"); thisKey == key {
+			return row.GetFieldString("Value"), nil
 		}
 	}
 
 	return "", errors.New("config key not found")
 }
 
-// GetFieldFromRow Attempt to get string field from task
-func GetFieldFromRow(row *Row, fieldName string) string {
+// GetField Get a generic field value from a row
+func (r *Row) GetField(fieldName string) (interface{}, error) {
 	// Attempt to cast and get state
-	if res, ok := row.Fields.(map[string]interface{}); ok {
+	if res, ok := r.Fields.(map[string]interface{}); ok {
 		if state, ok := res[fieldName]; ok {
-			if stateString, ok := state.(string); ok {
-				return stateString
-			}
-			if stateBool, ok := state.(bool); ok {
-				if stateBool {
-					return "true"
-				}
-				return "false"
-			}
-			if stateFloat, ok := state.(float64); ok {
-				return fmt.Sprintf("%f", stateFloat)
-			}
+			return state, nil
 		}
+	}
+	return nil, errors.New("could not find field")
+}
+
+// GetFieldString Get string value from a row
+func (r *Row) GetFieldString(fieldName string) string {
+	// Attempt to cast and get state
+	value, err := r.GetField(fieldName)
+	if err != nil {
+		return ""
+	}
+	if valueString, ok := value.(string); ok {
+		return valueString
+	}
+	if valueBool, ok := value.(bool); ok {
+		if valueBool {
+			return "true"
+		}
+		return "false"
+	}
+	if valueFloat, ok := value.(float64); ok {
+		return fmt.Sprintf("%f", valueFloat)
 	}
 	return ""
 }
 
-func GetFieldFromRowTime(row *Row, fieldName string) time.Time {
+// GetFieldTime Get a field value in time format from a row, returns DefaultBlankTime if parsing fails
+func (r *Row) GetFieldTime(row *Row, fieldName string) time.Time {
 	// Attempt to cast and get state
-	if res, ok := row.Fields.(map[string]interface{}); ok {
-		if state, ok := res[fieldName]; ok {
-			if timeStr, ok := state.(string); ok {
-				time, err := time.Parse(AirtableDateFormat, timeStr)
-				if err == nil {
-					return time
-				}
-			}
-		}
+	timeStr := r.GetFieldString(fieldName)
+	if timeStr == "" {
+		return DefaultBlankTime
 	}
-	return time.Date(1, 0, 0, 0, 0, 0, 0, time.UTC)
+	time, err := time.Parse(AirtableDateFormat, timeStr)
+	if err == nil {
+		return time
+	}
+	return DefaultBlankTime
 }
