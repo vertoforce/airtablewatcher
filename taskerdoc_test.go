@@ -10,7 +10,7 @@ import (
 func printTask(ctx context.Context, watcher *Watcher, tableName string, row *Row) {
 	fmt.Printf("Running code on %v", row)
 	// Make sure to change state after work is done!
-	watcher.SetField("Tasks", row.ID, "State", "Done")
+	watcher.SetRow("Tasks", row.ID, map[string]interface{}{"State": "Done"})
 }
 
 func Example() {
