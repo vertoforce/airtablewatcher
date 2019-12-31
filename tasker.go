@@ -212,24 +212,21 @@ func (t *Watcher) GetConfig(key string) (string, error) {
 	return "", errors.New("config key not found")
 }
 
-// GetField Get a generic field value from a row
-func (r *Row) GetField(fieldName string) (interface{}, error) {
+// GetField Get a generic field value from a row, returns nil if not found
+func (r *Row) GetField(fieldName string) interface{} {
 	// Attempt to cast and get state
 	if res, ok := r.Fields.(map[string]interface{}); ok {
 		if state, ok := res[fieldName]; ok {
-			return state, nil
+			return state
 		}
 	}
-	return nil, errors.New("could not find field")
+	return nil
 }
 
 // GetFieldString Get string value from a row
 func (r *Row) GetFieldString(fieldName string) string {
 	// Attempt to cast and get state
-	value, err := r.GetField(fieldName)
-	if err != nil {
-		return ""
-	}
+	value := r.GetField(fieldName)
 	if valueString, ok := value.(string); ok {
 		return valueString
 	}
