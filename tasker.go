@@ -243,7 +243,7 @@ func (r *Row) GetFieldString(fieldName string) string {
 }
 
 // GetFieldTime Get a field value in time format from a row, returns DefaultBlankTime if parsing fails
-func (r *Row) GetFieldTime(row *Row, fieldName string) time.Time {
+func (r *Row) GetFieldTime(fieldName string) time.Time {
 	// Attempt to cast and get state
 	timeStr := r.GetFieldString(fieldName)
 	if timeStr == "" {
