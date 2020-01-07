@@ -1,6 +1,6 @@
 # Airtable Watcher
 
-Airtable watcher is a simple library to make it easy to run backend go code based on an airtable frontend.
+Airtable watcher makes it easy to run backend go code based on an airtable frontend.
 
 The library watches an airtable base and runs a function when a field is changed to the `triggerValue`.
 
