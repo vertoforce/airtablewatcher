@@ -1,5 +1,8 @@
 # Airtable Watcher
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/vertoforce/airtablewatcher)](https://goreportcard.com/report/github.com/vertoforce/airtablewatcher)
+[![Documentation](https://godoc.org/github.com/vertoforce/airtablewatcher?status.svg)](https://godoc.org/github.com/vertoforce/airtablewatcher)
+
 Airtable watcher makes it easy to run backend go code based on an airtable frontend.
 
 The library watches an airtable base and runs a function when a field is changed to the `triggerValue`.
