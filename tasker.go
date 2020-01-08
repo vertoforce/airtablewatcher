@@ -114,7 +114,7 @@ func (t *Watcher) Start(ctx context.Context) error {
 		}
 
 		// Go through each row in each table
-		for tableName, _ := range tables {
+		for tableName := range tables {
 			rows, err := t.GetRows(tableName)
 			if err != nil {
 				return err
