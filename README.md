@@ -24,10 +24,7 @@ func printTask(ctx context.Context, watcher *Watcher, tableName string, row *Row
 }
 
 func Example() {
-    tasker, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
-    if err != nil {
-        return
-    }
+    tasker, _ := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
     tasker.PollInterval = time.Second * 5
 
     // Register function
