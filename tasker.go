@@ -129,7 +129,7 @@ func (t *Watcher) Start(ctx context.Context) error {
 	}
 }
 
-// watchForCancel watches a row if it leaves the trigger value, if it does, cancels the context
+// watchForCancel watches a row if it changes to a cancel value, if it does, cancels the context
 func (t *Watcher) watchForCancel(ctx context.Context, row *Row, watcher *watch, actionFunctionCancel context.CancelFunc) {
 	for {
 		rowUpdated, err := t.GetRow(watcher.tableName, row.ID)
