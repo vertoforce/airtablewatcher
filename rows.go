@@ -48,7 +48,8 @@ func (r *Row) GetFieldString(fieldName string) string {
 	if valueFloat, ok := value.(float64); ok {
 		return fmt.Sprintf("%f", valueFloat)
 	}
-	return ""
+	// Return string representation of field
+	return fmt.Sprintf("%s", value)
 }
 
 // GetFieldTime Get a field value in time format from a row, returns DefaultBlankTime if parsing fails
