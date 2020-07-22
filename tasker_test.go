@@ -30,7 +30,7 @@ func TestNewWatcher(t *testing.T) {
 
 	// Register function
 	ranFunction = make(chan int)
-	watcher.RegisterFunction("Tasks", "State", "ToDo", performAction)
+	watcher.RegisterFunction("Tasks", "State", []string{"ToDo"}, performAction)
 
 	// Set a task to ToDo
 	rows, err := watcher.GetRows("Tasks")
@@ -117,7 +117,7 @@ func TestCancel(t *testing.T) {
 	watcher.PollInterval = time.Second * 2
 
 	// Add function and start watcher
-	watcher.RegisterFunction("Tasks", "State", "ToDo", CancelMe, "Cancel")
+	watcher.RegisterFunction("Tasks", "State", []string{"ToDo"}, CancelMe, "Cancel")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go watcher.Start(ctx)

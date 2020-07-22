@@ -21,7 +21,7 @@ func Example() {
 	tasker.PollInterval = time.Second * 5
 
 	// Register function
-	tasker.RegisterFunction("Tasks", "State", "ToDo", printTask)
+	tasker.RegisterFunction("Tasks", "State", []string{"ToDo"}, printTask)
 
 	// Start tasker
 	tasker.Start(context.Background())

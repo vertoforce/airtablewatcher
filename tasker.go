@@ -33,7 +33,7 @@ type Watcher struct {
 type watch struct {
 	tableName      string
 	fieldName      string
-	triggerValue   string
+	triggerValues  []string
 	cancelValues   []string
 	actionFunction ActionFunction
 }
@@ -71,8 +71,8 @@ func (t *Watcher) connect() error {
 
 // RegisterFunction Register a function to run on an airtable row when the state is changed to the trigger state.
 // cancelValue will cancel the function when any of the cancelValues is matched
-func (t *Watcher) RegisterFunction(tableName, fieldName, triggerValue string, actionFunction ActionFunction, cancelValue ...string) {
-	t.watchers = append(t.watchers, watch{tableName, fieldName, triggerValue, cancelValue, actionFunction})
+func (t *Watcher) RegisterFunction(tableName, fieldName string, triggerValues []string, actionFunction ActionFunction, cancelValue ...string) {
+	t.watchers = append(t.watchers, watch{tableName, fieldName, triggerValues, cancelValue, actionFunction})
 }
 
 // Start watch airtable for triggers, blocking function.
@@ -103,16 +103,19 @@ func (t *Watcher) Start(ctx context.Context) error {
 						continue
 					}
 
-					if row.GetFieldString(watcher.fieldName) == watcher.triggerValue { // We should run this action function!
-						actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
+					for _, triggerValue := range watcher.triggerValues {
+						if row.GetFieldString(watcher.fieldName) == triggerValue { // We should run this action function!
+							actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
 
-						// Cancel context if fieldName =/= triggerValue
-						go t.watchForCancel(actionFunctionCtx, &row, &watcher, actionFunctionCancel)
+							// Cancel context if fieldName =/= triggerValue
+							go t.watchForCancel(actionFunctionCtx, &row, &watcher, actionFunctionCancel)
 
-						// Call action
-						watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
+							// Call action
+							watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
 
-						actionFunctionCancel()
+							actionFunctionCancel()
+							break
+						}
 					}
 				}
 			}
