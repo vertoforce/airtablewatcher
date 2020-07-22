@@ -55,6 +55,7 @@ func (r *Row) GetFieldString(fieldName string) string {
 // GetFieldTime Get a field value in time format from a row, returns DefaultBlankTime if parsing fails
 func (r *Row) GetFieldTime(fieldName string) time.Time {
 	// Attempt to cast and get state
+	// TODO: Support date field without time
 	timeStr := r.GetFieldString(fieldName)
 	if timeStr == "" {
 		return DefaultBlankTime
