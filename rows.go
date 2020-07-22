@@ -48,6 +48,9 @@ func (r *Row) GetFieldString(fieldName string) string {
 	if valueFloat, ok := value.(float64); ok {
 		return fmt.Sprintf("%f", valueFloat)
 	}
+	if value == nil {
+		return ""
+	}
 	// Return string representation of field
 	return fmt.Sprintf("%s", value)
 }

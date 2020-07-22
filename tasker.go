@@ -103,7 +103,7 @@ func (t *Watcher) Start(ctx context.Context) error {
 						continue
 					}
 
-					if row.GetFieldString(watcher.fieldName) == watcher.triggerValue || (row.GetField(watcher.fieldName) == nil && watcher.triggerValue == "") { // We should run this action function!
+					if row.GetFieldString(watcher.fieldName) == watcher.triggerValue { // We should run this action function!
 						actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
 
 						// Cancel context if fieldName =/= triggerValue
