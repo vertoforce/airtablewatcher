@@ -1,6 +1,7 @@
 package airtablewatcher
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -53,6 +54,24 @@ func (r *Row) GetFieldString(fieldName string) string {
 	}
 	// Return string representation of field
 	return fmt.Sprintf("%s", value)
+}
+
+// GetFieldAttachments Gets the attachments from a field
+func (r *Row) GetFieldAttachments(fieldName string) ([]AirtableAttachment, error) {
+	value := r.GetField(fieldName)
+	// Try to unmarshall and remarshal to airtable attachment
+	JSON, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("error converting: %w", err)
+	}
+
+	attachments := []AirtableAttachment{}
+	err = json.Unmarshal(JSON, &attachments)
+	if err != nil {
+		return nil, fmt.Errorf("error converting: %w", err)
+	}
+
+	return attachments, nil
 }
 
 // GetFieldTime Get a field value in time format from a row, returns DefaultBlankTime if parsing fails
