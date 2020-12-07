@@ -3,6 +3,7 @@ package airtablewatcher
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/fabioberger/airtable-go"
@@ -27,6 +28,10 @@ type Watcher struct {
 	timeout      time.Duration
 	watchers     []watch
 	ctx          context.Context
+
+	// Map of rows we ignore since a job is already running for that row
+	IgnoreRows map[string]struct{}
+	sync.Mutex
 }
 
 // watch is a an event we are watching for including a specific trigger and action function
@@ -49,6 +54,7 @@ func NewWatcher(airtableKey, airtableBase string) (*Watcher, error) {
 		airtableBase:    airtableBase,
 		PollInterval:    DefaultAirtablePollInterval,
 		ConfigTableName: DefaultConfigTableName,
+		IgnoreRows:      map[string]struct{}{},
 	}
 	err := watcher.connect()
 	if err != nil {
@@ -95,7 +101,16 @@ func (t *Watcher) Start(ctx context.Context) error {
 			}
 
 			// Check each row
+		rowLoop:
 			for _, row := range rows {
+				// Check if this row should be ignored
+				t.Lock()
+				if _, ok := t.IgnoreRows[row.ID]; ok {
+					t.Unlock()
+					continue
+				}
+				t.Unlock()
+
 				// Check each watcher
 				for _, watcher := range t.watchers {
 					// Check tableName
@@ -104,17 +119,33 @@ func (t *Watcher) Start(ctx context.Context) error {
 					}
 
 					for _, triggerValue := range watcher.triggerValues {
-						if row.GetFieldString(watcher.fieldName) == triggerValue { // We should run this action function!
-							actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
+						if row.GetFieldString(watcher.fieldName) == triggerValue {
+							// Add to list of rows we are ignoring
+							t.Lock()
+							t.IgnoreRows[row.ID] = struct{}{}
+							t.Unlock()
 
-							// Cancel context if fieldName =/= triggerValue
-							go t.watchForCancel(actionFunctionCtx, &row, &watcher, actionFunctionCancel)
+							// We should run this action function!
+							// Run it in a new thread
+							go func(row Row) {
+								actionFunctionCtx, actionFunctionCancel := context.WithCancel(t.ctx)
 
-							// Call action
-							watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
+								// Cancel context if fieldName =/= triggerValue
+								go t.watchForCancel(actionFunctionCtx, &row, &watcher, actionFunctionCancel)
 
-							actionFunctionCancel()
-							break
+								// Call action
+								watcher.actionFunction(actionFunctionCtx, t, tableName, &row)
+
+								actionFunctionCancel()
+
+								// Remove from rows we ignore
+								t.Lock()
+								delete(t.IgnoreRows, row.ID)
+								t.Unlock()
+							}(row)
+
+							// No need to check this row anymore
+							continue rowLoop
 						}
 					}
 				}

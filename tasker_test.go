@@ -159,3 +159,26 @@ func TestCancel(t *testing.T) {
 		t.Errorf("Did not cancel function")
 	}
 }
+
+// Test to make sure a job running already does not get triggered again
+// For this test you must manually trigger a job and make sure it is not run again before it finishes
+func TestConcurrentJob(t *testing.T) {
+	watcher, err := NewWatcher(os.Getenv("AIRTABLE_KEY"), os.Getenv("AIRTABLE_BASE"))
+	if err != nil {
+		t.Errorf(err.Error())
+		return
+	}
+	watcher.PollInterval = time.Second * 2
+
+	performLongAction := func(ctx context.Context, watcher *Watcher, tableName string, row *Row) {
+		fmt.Printf("Running long function %s\n", row.ID)
+		time.Sleep(time.Second * 30)
+		fmt.Println("Done")
+	}
+
+	// Register function
+	watcher.RegisterFunction("Tasks", "State", []string{"ToDo"}, performLongAction)
+
+	// Start tasker
+	watcher.Start(context.Background())
+}
